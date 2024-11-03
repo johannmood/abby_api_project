@@ -36,8 +36,8 @@ def save_interaction(user_id, personality_traits, recent_messages, preferences):
         upsert=True
     )
 
-# Route to handle user queries
-@app.route("/ask_abby", methods=["POST"])
+# Route to handle user queries at the root endpoint
+@app.route("/", methods=["POST"])
 def ask_abby():
     data = request.get_json()
     user_id = data.get("user_id", "guest")
@@ -63,4 +63,4 @@ def ask_abby():
     return jsonify({"response": response_text})
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)  # Make sure the port matches your configuration
+    app.run(debug=True)
