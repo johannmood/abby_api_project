@@ -1,0 +1,37 @@
+import openai
+
+# Set up OpenAI API key
+openai.api_key = "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"
+
+# Example user ID
+user_id = "user123"
+
+# Load interaction data from MongoDB
+personality_traits, recent_messages, preferences = load_interaction(user_id)
+
+# Create a prompt for ABBY based on user data
+prompt = f"{personality_traits} Your previous messages were: {recent_messages}. User preferences: {preferences}. Now respond to the user's latest request."
+
+# Make the API call to OpenAI
+response = openai.ChatCompletion.create(
+    model="gpt-4-turbo",
+    messages=[
+        {"role": "system", "content": personality_traits},
+        {"role": "user", "content": "I'm in Berlin and looking for activities to connect with like-minded people. What would you suggest?"}
+    ],
+    temperature=0.5,
+    max_tokens=300
+)
+
+# Extract the response text
+response_text = response['choices'][0]['message']['content']
+print("ABBY's response:", response_text)
+
+# Update recent messages with the latest interaction
+recent_messages.append({
+    "user": "I'm in Berlin and looking for activities...",
+    "assistant": response_text
+})
+
+# Save the updated data back to MongoDB
+save_interaction(user_id, personality_traits, recent_messages, preferences)
