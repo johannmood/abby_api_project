@@ -11,7 +11,7 @@ CORS(app)  # Enable CORS for frontend access
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["abby_database"]
 user_interactions = db["user_interactions"]
-openai.api_key = os.getenv("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")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Load interaction function
 def load_interaction(user_id):
@@ -63,4 +63,4 @@ def ask_abby():
     return jsonify({"response": response_text})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)  # Make sure the port matches your configuration
