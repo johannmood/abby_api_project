@@ -1,6 +1,10 @@
 import os
 from pymongo import MongoClient
 import openai
+from flask import Flask, request, jsonify
+
+# Initialize Flask app
+app = Flask(__name__)
 
 # Load environment variables for security
 openai.api_key = os.getenv("OPENAI_API_KEY")  # Set your OpenAI API key in the environment
@@ -47,36 +51,45 @@ def load_interaction(user_id):
         print(f"Error loading interaction data: {e}")
         return default_personality_traits, [], ""
 
-# Example user ID
-user_id = "user123"
+# Define endpoint for interacting with ABBY
+@app.route("/ask_abby", methods=["POST"])
+def ask_abby():
+    # Get JSON data from the request
+    data = request.get_json()
+    user_id = data.get("user_id", "default_user")
+    user_message = data.get("message", "")
 
-# Load interaction data for the user
-personality_traits, recent_messages, preferences = load_interaction(user_id)
+    # Load interaction data for the user
+    personality_traits, recent_messages, preferences = load_interaction(user_id)
 
-# Create prompt for ABBY based on user data
-user_message = "Hello, ABBY! What can I do in Berlin today to connect with like-minded people?"
-prompt = f"{personality_traits} Your previous messages were: {recent_messages}. User preferences: {preferences}. Now respond to the user's latest request."
+    # Make API call to OpenAI
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": personality_traits},
+                {"role": "user", "content": user_message}
+            ]
+        )
+        response_text = response['choices'][0]['message']['content']
+        print("ABBY's response:", response_text)
 
-# Make API call to OpenAI
-try:
-    response = openai.ChatCompletion.create(
-        model="gpt-4-turbo",
-        messages=[
-            {"role": "system", "content": personality_traits},
-            {"role": "user", "content": user_message}
-        ]
-    )
-    response_text = response['choices'][0]['message']['content']
-    print("ABBY's response:", response_text)
+        # Update recent messages with the new interaction
+        recent_messages.append({
+            "user": user_message,
+            "assistant": response_text
+        })
 
-    # Update recent messages with the new interaction
-    recent_messages.append({
-        "user": user_message,
-        "assistant": response_text
-    })
+        # Save updated interaction data back to MongoDB
+        save_interaction(user_id, personality_traits, recent_messages, preferences)
 
-    # Save updated interaction data back to MongoDB
-    save_interaction(user_id, personality_traits, recent_messages, preferences)
+        # Return the response as JSON
+        return jsonify({"response": response_text})
 
-except Exception as e:
-    print(f"Error in OpenAI API call: {e}")
+    except Exception as e:
+        print(f"Error in OpenAI API call: {e}")
+        return jsonify({"error": "An error occurred while processing your request."}), 500
+
+# Run the Flask app with specified host and port
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)  # Render typically uses port 10000
