@@ -92,4 +92,4 @@ def ask_abby():
 
 # Run the Flask app with specified host and port
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000 debug=True)  # Render typically uses port 10000
+    app.run(host="0.0.0.0", port=10000, debug=True)  # Render typically uses port 10000
