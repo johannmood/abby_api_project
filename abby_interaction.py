@@ -7,8 +7,8 @@ app = Flask(__name__)
 # Set your OpenAI API key
 openai.api_key = "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"
 
-@app.route('/chat', methods=['POST'])
-def chat():
+@app.route('/ask_abby', methods=['POST'])
+def ask_abby():
     # Get the user's input from the request data
     user_input = request.json.get("user_input")
 
