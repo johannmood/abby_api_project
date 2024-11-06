@@ -1,21 +1,25 @@
-import openai
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
+import openai
 from flask_cors import CORS
 import os
 import logging
 
+# Initialize Flask app and enable CORS
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend access
+CORS(app)
+
+# Initialize logging for detailed error tracking
 logging.basicConfig(level=logging.DEBUG)
 
-# Initialize MongoDB and OpenAI with environment variables
+# Initialize MongoDB client with environment variables
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["abby_database"]
 user_interactions = db["user_interactions"]
+
+# Initialize OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Load interaction function
 def load_interaction(user_id):
     user_data = user_interactions.find_one({"user_id": user_id})
     if user_data:
@@ -26,7 +30,6 @@ def load_interaction(user_id):
         """
         return default_personality_traits, [], ""
 
-# Save interaction function
 def save_interaction(user_id, personality_traits, recent_messages, preferences):
     user_interactions.update_one(
         {"user_id": user_id},
@@ -38,7 +41,6 @@ def save_interaction(user_id, personality_traits, recent_messages, preferences):
         upsert=True
     )
 
-# Route to handle user queries
 @app.route("/ask_abby", methods=["POST"])
 def ask_abby():
     data = request.get_json()
@@ -48,28 +50,26 @@ def ask_abby():
     # Load interaction data
     personality_traits, recent_messages, preferences = load_interaction(user_id)
 
-    # API call to OpenAI with the new API structure
+    # API call to OpenAI using the updated API structure
     try:
-        response = openai.Chat.create(
-    model="gpt-4-turbo",
-    messages=[
-        {"role": "system", "content": personality_traits},
-        {"role": "user", "content": user_message}
-    ]
-)
-response_text = response['choices'][0]['text']
+        response = openai.ChatCompletion.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": personality_traits},
+                {"role": "user", "content": user_message}
+            ]
         )
-        response_text = response['choices'][0]['message']['content']
+        response_text = response.choices[0].message['content']
 
         # Update and save interaction data
         recent_messages.append({"user": user_message, "assistant": response_text})
         save_interaction(user_id, personality_traits, recent_messages, preferences)
 
         return jsonify({"response": response_text})
-    except Exception as e:
-        logging.error(f"An error occurred while processing the request: {e}")
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-# Run the Flask app with specified host and port
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+        return jsonify({"error": f"An error occurred: {e}"})
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)  # Render typically uses port 10000
+    app.run(host="0.0.0.0", port=10000, debug=True)
