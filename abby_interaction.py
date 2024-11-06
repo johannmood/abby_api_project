@@ -3,13 +3,9 @@ from pymongo import MongoClient
 import openai
 from flask_cors import CORS
 import os
-import logging
-
-# Configure logging for detailed debug information
-logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend access
+CORS(app)
 
 # Initialize MongoDB and OpenAI with environment variables
 client = MongoClient(os.getenv("MONGO_URI"))
@@ -40,7 +36,7 @@ def save_interaction(user_id, personality_traits, recent_messages, preferences):
         upsert=True
     )
 
-# Route to handle user queries at the /ask_abby endpoint
+# Route to handle user queries at the root endpoint
 @app.route("/ask_abby", methods=["POST"])
 def ask_abby():
     data = request.get_json()
@@ -52,25 +48,23 @@ def ask_abby():
 
     # API call to OpenAI
     try:
-        response = openai.Completion.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": personality_traits},
                 {"role": "user", "content": user_message}
             ]
         )
-        response_text = response.choices[0].message['content']
+        response_text = response['choices'][0]['message']['content']
 
         # Update and save interaction data
         recent_messages.append({"user": user_message, "assistant": response_text})
         save_interaction(user_id, personality_traits, recent_messages, preferences)
 
         return jsonify({"response": response_text})
-
+    
     except Exception as e:
-        logging.error(f"An error occurred while processing the request: {e}")
-        return jsonify({"error": "An error occurred while processing your request."}), 500
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-# Run the Flask app with specified host and port
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)  # Render typically uses port 10000
+    app.run(host="0.0.0.0", port=10000, debug=True)
