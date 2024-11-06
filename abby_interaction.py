@@ -51,8 +51,8 @@ def ask_abby():
     personality_traits, recent_messages, preferences = load_interaction(user_id)
 
     try:
-        # API call to OpenAI (updated to new API syntax)
-        response = openai.Chat.create(
+        # API call to OpenAI (updated to use ChatCompletion for latest API)
+        response = openai.ChatCompletion.create(
             model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": personality_traits},
@@ -60,8 +60,8 @@ def ask_abby():
             ]
         )
         
-        # Accessing response text in new API format
-        response_text = response.choices[0].message['content']
+        # Accessing response text in the new API format
+        response_text = response['choices'][0]['message']['content']
 
         # Update and save interaction data
         recent_messages.append({"user": user_message, "assistant": response_text})
