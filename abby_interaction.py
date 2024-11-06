@@ -50,12 +50,14 @@ def ask_abby():
 
     # API call to OpenAI with the new API structure
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": personality_traits},
-                {"role": "user", "content": user_message}
-            ]
+        response = openai.Chat.create(
+    model="gpt-4-turbo",
+    messages=[
+        {"role": "system", "content": personality_traits},
+        {"role": "user", "content": user_message}
+    ]
+)
+response_text = response['choices'][0]['text']
         )
         response_text = response['choices'][0]['message']['content']
 
