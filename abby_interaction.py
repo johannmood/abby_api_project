@@ -1,57 +1,68 @@
-import requests
+from flask import Flask, request, jsonify
+from pymongo import MongoClient
+import openai
+from flask_cors import CORS
 import os
-import logging
 
-# Configure logging for detailed debug information
-logging.basicConfig(level=logging.DEBUG)
+app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend access
 
-# Base URL for the Render-hosted API
-BASE_URL = os.getenv("ABBY_API_URL", "https://abby-api.onrender.com")
+# Initialize MongoDB and OpenAI with environment variables
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client["abby_database"]
+user_interactions = db["user_interactions"]
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def ask_abby(user_id, message):
-    """
-    Sends a message to the ABBY API and returns the response.
-
-    Parameters:
-    - user_id (str): The unique identifier for the user.
-    - message (str): The message to send to ABBY.
-
-    Returns:
-    - dict: Response from ABBY API if successful.
-    - None: If there's an error.
-    """
-    endpoint = f"{BASE_URL}/ask_abby"
-    headers = {"Content-Type": "application/json"}
-    payload = {
-        "user_id": user_id,
-        "message": message
-    }
-
-    try:
-        response = requests.post(endpoint, json=payload, headers=headers)
-        response.raise_for_status()  # Raise an error for bad status codes
-        logging.debug(f"Response received: {response.json()}")
-        return response.json()  # Return the JSON response as a dictionary
-
-    except requests.exceptions.HTTPError as http_err:
-        logging.error(f"HTTP error occurred: {http_err}")
-    except requests.exceptions.ConnectionError as conn_err:
-        logging.error(f"Connection error occurred: {conn_err}")
-    except requests.exceptions.Timeout as timeout_err:
-        logging.error(f"Timeout error occurred: {timeout_err}")
-    except requests.exceptions.RequestException as req_err:
-        logging.error(f"An error occurred: {req_err}")
-
-    return None  # Return None if any error occurs
-
-# Example usage
-if __name__ == "__main__":
-    user_id = "user123"
-    message = "Hello, ABBY! What can I do in Berlin today to connect with like-minded people?"
-
-    # Call the ask_abby function and print the response
-    response = ask_abby(user_id, message)
-    if response:
-        print(f"ABBY's response: {response['response']}")
+# Load interaction function
+def load_interaction(user_id):
+    user_data = user_interactions.find_one({"user_id": user_id})
+    if user_data:
+        return user_data["personality_traits"], user_data["recent_messages"], user_data["preferences"]
     else:
-        print("Failed to get a response from ABBY.")
+        default_personality_traits = """
+        You are ABBY, a compassionate, spiritually attuned guide with a warm, poetic, and grounded voice...
+        """
+        return default_personality_traits, [], ""
+
+# Save interaction function
+def save_interaction(user_id, personality_traits, recent_messages, preferences):
+    user_interactions.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "personality_traits": personality_traits,
+            "recent_messages": recent_messages,
+            "preferences": preferences
+        }},
+        upsert=True
+    )
+
+# Route to handle user queries
+@app.route("/ask_abby", methods=["POST"])
+def ask_abby():
+    data = request.get_json()
+    user_id = data.get("user_id", "guest")
+    user_message = data["message"]
+
+    # Load interaction data
+    personality_traits, recent_messages, preferences = load_interaction(user_id)
+
+    # API call to OpenAI
+    response = openai.ChatCompletion.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": personality_traits},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    response_text = response['choices'][0]['message']['content']
+
+    # Update and save interaction data
+    recent_messages.append({"user": user_message, "assistant": response_text})
+    save_interaction(user_id, personality_traits, recent_messages, preferences)
+
+    return jsonify({"response": response_text})
+
+# Run the Flask app with specified host and port
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 10000))  # Use PORT from env or default to 10000
+    app.run(host="0.0.0.0", port=port, debug=True)
