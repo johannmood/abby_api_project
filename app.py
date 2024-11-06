@@ -37,7 +37,7 @@ def save_interaction(user_id, personality_traits, recent_messages, preferences):
     )
 
 # Route to handle user queries at the root endpoint
-@app.route("/", methods=["POST"])
+@app.route("/ask_abby", methods=["POST"])
 def ask_abby():
     data = request.get_json()
     user_id = data.get("user_id", "guest")
