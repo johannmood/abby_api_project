@@ -1,11 +1,13 @@
+import openai
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
-import openai
 from flask_cors import CORS
 import os
+import logging
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Enable CORS for frontend access
+logging.basicConfig(level=logging.DEBUG)
 
 # Initialize MongoDB and OpenAI with environment variables
 client = MongoClient(os.getenv("MONGO_URI"))
@@ -36,7 +38,7 @@ def save_interaction(user_id, personality_traits, recent_messages, preferences):
         upsert=True
     )
 
-# Route to handle user queries at the root endpoint
+# Route to handle user queries
 @app.route("/ask_abby", methods=["POST"])
 def ask_abby():
     data = request.get_json()
@@ -46,7 +48,7 @@ def ask_abby():
     # Load interaction data
     personality_traits, recent_messages, preferences = load_interaction(user_id)
 
-    # API call to OpenAI
+    # API call to OpenAI with the new API structure
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4-turbo",
@@ -62,9 +64,10 @@ def ask_abby():
         save_interaction(user_id, personality_traits, recent_messages, preferences)
 
         return jsonify({"response": response_text})
-    
     except Exception as e:
+        logging.error(f"An error occurred while processing the request: {e}")
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+# Run the Flask app with specified host and port
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    app.run(host="0.0.0.0", port=10000, debug=True)  # Render typically uses port 10000
