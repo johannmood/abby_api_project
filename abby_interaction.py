@@ -3,10 +3,6 @@ from pymongo import MongoClient
 import openai
 from flask_cors import CORS
 import os
-import logging
-
-# Configure logging for debugging
-logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend access
@@ -40,7 +36,7 @@ def save_interaction(user_id, personality_traits, recent_messages, preferences):
         upsert=True
     )
 
-# Route to handle user queries at the root endpoint
+# Route to handle user queries
 @app.route("/ask_abby", methods=["POST"])
 def ask_abby():
     data = request.get_json()
@@ -50,29 +46,21 @@ def ask_abby():
     # Load interaction data
     personality_traits, recent_messages, preferences = load_interaction(user_id)
 
-    try:
-        # API call to OpenAI (updated to use ChatCompletion for latest API)
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": personality_traits},
-                {"role": "user", "content": user_message}
-            ]
-        )
-        
-        # Accessing response text in the new API format
-        response_text = response['choices'][0]['message']['content']
+    # API call to OpenAI using the new method
+    response = openai.Chat.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": personality_traits},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    response_text = response['choices'][0]['message']['content']
 
-        # Update and save interaction data
-        recent_messages.append({"user": user_message, "assistant": response_text})
-        save_interaction(user_id, personality_traits, recent_messages, preferences)
+    # Update and save interaction data
+    recent_messages.append({"user": user_message, "assistant": response_text})
+    save_interaction(user_id, personality_traits, recent_messages, preferences)
 
-        return jsonify({"response": response_text})
+    return jsonify({"response": response_text})
 
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-        return jsonify({"error": f"An error occurred: {e}"}), 500
-
-# Run the Flask app with specified host and port
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
