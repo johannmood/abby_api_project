@@ -1,5 +1,6 @@
-flask
-flask-cors
-openai==1.0.0
+Flask
+Flask-Cors
 pymongo
-requests
+openai
+python-dotenv
+gunicorn
