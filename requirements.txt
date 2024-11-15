@@ -1,6 +1,2 @@
-Flask
-Flask-Cors
-pymongo
-openai
-python-dotenv
-gunicorn
+flask
+numpy
