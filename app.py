@@ -14,6 +14,12 @@ def calculate_similarity():
     similarity = np.dot(embedding1, embedding2) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
     return jsonify({'similarity': similarity})
 
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    return jsonify({
+        'message': 'Welcome to Abby API! Use /calculate_similarity for cosine similarity calculations.'
+    })
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Use Render's assigned port
+    port = int(os.environ.get('PORT', 5000))  # Use Render's assigned port or default to 5000
     app.run(host='0.0.0.0', port=port)
