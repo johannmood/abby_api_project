@@ -20,6 +20,9 @@ def decompress_embedding(compressed_embedding):
 
 @app.route('/calculate_similarity', methods=['POST'])
 def calculate_similarity():
+    """
+    Calculate the cosine similarity between two embeddings.
+    """
     try:
         # Parse incoming JSON data
         data = request.json
@@ -37,8 +40,8 @@ def calculate_similarity():
             np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
         )
 
-        # Return similarity score
-        return jsonify({'similarity': similarity})
+        # Convert similarity to standard Python float for JSON serialization
+        return jsonify({'similarity': float(similarity)})
 
     except KeyError as e:
         return jsonify({'error': f'Missing key: {str(e)}'}), 400
