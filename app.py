@@ -1,42 +1,53 @@
 from flask import Flask, request, jsonify
 import numpy as np
-import os
+import base64
 
 app = Flask(__name__)
+
+# Helper function to decompress embeddings
+def decompress_embedding(compressed_embedding):
+    """
+    Decode a compressed embedding from Base64 and convert to a NumPy array.
+    """
+    try:
+        # Decode the Base64 string
+        binary_data = base64.b64decode(compressed_embedding)
+
+        # Convert the binary data into a NumPy array of floats
+        return np.frombuffer(binary_data, dtype=np.float32)
+    except Exception as e:
+        raise ValueError(f"Error decompressing embedding: {str(e)}")
 
 @app.route('/calculate_similarity', methods=['POST'])
 def calculate_similarity():
     try:
-        # Parse and validate JSON payload
+        # Parse incoming JSON data
         data = request.json
 
-        # Check if the keys 'embedding1' and 'embedding2' exist
-        if 'embedding1' not in data or 'embedding2' not in data:
-            return jsonify({'error': 'Both embedding1 and embedding2 are required'}), 400
+        # Extract and decompress embeddings
+        embedding1 = decompress_embedding(data['embedding1'])
+        embedding2 = decompress_embedding(data['embedding2'])
 
-        # Convert embeddings to numpy arrays and ensure numeric values
-        try:
-            embedding1 = np.array(data['embedding1'], dtype=float)
-            embedding2 = np.array(data['embedding2'], dtype=float)
-        except ValueError:
-            return jsonify({'error': 'Embeddings must be numeric lists'}), 400
-
-        # Validate embedding lengths
-        if len(embedding1) != len(embedding2):
-            return jsonify({'error': 'Embeddings must have the same length'}), 400
+        # Check if embeddings are valid
+        if len(embedding1) == 0 or len(embedding2) == 0:
+            return jsonify({'error': 'Embeddings must not be empty'}), 400
 
         # Calculate cosine similarity
-        similarity = np.dot(embedding1, embedding2) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
+        similarity = np.dot(embedding1, embedding2) / (
+            np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
+        )
+
+        # Return similarity score
         return jsonify({'similarity': similarity})
 
+    except KeyError as e:
+        return jsonify({'error': f'Missing key: {str(e)}'}), 400
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        # Catch unexpected errors and return as response
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/', methods=['GET', 'POST'])
-def home():
-    return jsonify({'message': 'Welcome to Abby API! Use /calculate_similarity for cosine similarity calculations.'})
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Use Render's assigned port
+    import os
+    port = int(os.environ.get('PORT', 5001))
     app.run(host='0.0.0.0', port=port)
