@@ -40,8 +40,11 @@ def calculate_similarity():
             np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
         )
 
-        # Convert similarity to standard Python float for JSON serialization
-        return jsonify({'similarity': float(similarity)})
+        # Convert NumPy float to Python float for JSON serialization
+        similarity = float(similarity)
+
+        # Return similarity score
+        return jsonify({'similarity': similarity})
 
     except KeyError as e:
         return jsonify({'error': f'Missing key: {str(e)}'}), 400
